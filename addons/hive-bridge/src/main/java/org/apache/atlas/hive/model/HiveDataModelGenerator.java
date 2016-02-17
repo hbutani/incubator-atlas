@@ -64,6 +64,7 @@ public class HiveDataModelGenerator {
 
     public static final String NAME = "name";
     public static final String TABLE_NAME = "tableName";
+    public static final String COLUMN_NAME = "columnName";
     public static final String CLUSTER_NAME = "clusterName";
     public static final String TABLE = "table";
     public static final String DB = "db";
@@ -99,6 +100,7 @@ public class HiveDataModelGenerator {
 
         // DDL/DML Process
         createProcessClass();
+        createColumnLineageClass();
     }
 
     public TypesDef getTypesDef() {
@@ -259,12 +261,12 @@ public class HiveDataModelGenerator {
 
     private void createColumnClass() throws AtlasException {
         AttributeDefinition[] attributeDefinitions = new AttributeDefinition[]{
-                new AttributeDefinition(NAME, DataTypes.STRING_TYPE.getName(), Multiplicity.REQUIRED, false, null),
+                new AttributeDefinition(COLUMN_NAME, DataTypes.STRING_TYPE.getName(), Multiplicity.REQUIRED, false, null),
                 new AttributeDefinition("type", DataTypes.STRING_TYPE.getName(), Multiplicity.REQUIRED, false, null),
                 new AttributeDefinition(COMMENT, DataTypes.STRING_TYPE.getName(), Multiplicity.OPTIONAL, false, null),};
         HierarchicalTypeDefinition<ClassType> definition =
                 new HierarchicalTypeDefinition<>(ClassType.class, HiveDataTypes.HIVE_COLUMN.getName(),
-                        ImmutableList.of(AtlasClient.REFERENCEABLE_SUPER_TYPE), attributeDefinitions);
+                        ImmutableList.of( "DataSet"), attributeDefinitions);
         classTypeDefinitions.put(HiveDataTypes.HIVE_COLUMN.getName(), definition);
         LOG.debug("Created definition for " + HiveDataTypes.HIVE_COLUMN.getName());
     }
@@ -361,6 +363,24 @@ public class HiveDataModelGenerator {
                         ImmutableList.of(AtlasClient.PROCESS_SUPER_TYPE), attributeDefinitions);
         classTypeDefinitions.put(HiveDataTypes.HIVE_PROCESS.getName(), definition);
         LOG.debug("Created definition for " + HiveDataTypes.HIVE_PROCESS.getName());
+    }
+
+    private void createColumnLineageClass() throws AtlasException {
+
+        AttributeDefinition[] attributeDefinitions = new AttributeDefinition[]{
+                new AttributeDefinition("process", HiveDataTypes.HIVE_PROCESS.getName(),
+                        Multiplicity.REQUIRED, false, null),
+                new AttributeDefinition("depenendencyType",DataTypes.STRING_TYPE.getName(),
+                        Multiplicity.REQUIRED, false, null),
+                new AttributeDefinition("expression",DataTypes.STRING_TYPE.getName(),
+                        Multiplicity.OPTIONAL, false, null)
+        };
+        HierarchicalTypeDefinition<ClassType> definition =
+                new HierarchicalTypeDefinition<>(ClassType.class, HiveDataTypes.HIVE_COLUMN_LINEAGE.getName(),
+                        ImmutableList.of(AtlasClient.PROCESS_SUPER_TYPE), attributeDefinitions);
+        classTypeDefinitions.put(HiveDataTypes.HIVE_COLUMN_LINEAGE.getName(), definition);
+        LOG.debug("Created definition for " + HiveDataTypes.HIVE_COLUMN_LINEAGE.getName());
+
     }
 
     public String getModelAsJson() throws AtlasException {

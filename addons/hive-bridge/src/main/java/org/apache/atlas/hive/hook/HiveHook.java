@@ -21,6 +21,7 @@ package org.apache.atlas.hive.hook;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.atlas.ApplicationProperties;
+import org.apache.atlas.hive.bridge.ColumnLineageUtils;
 import org.apache.atlas.hive.bridge.HiveMetaStoreBridge;
 import org.apache.atlas.hive.model.HiveDataModelGenerator;
 import org.apache.atlas.hive.model.HiveDataTypes;
@@ -34,12 +35,8 @@ import org.apache.hadoop.hive.metastore.api.Database;
 import org.apache.hadoop.hive.ql.QueryPlan;
 import org.apache.hadoop.hive.ql.exec.ExplainTask;
 import org.apache.hadoop.hive.ql.exec.Task;
-import org.apache.hadoop.hive.ql.hooks.Entity;
+import org.apache.hadoop.hive.ql.hooks.*;
 import org.apache.hadoop.hive.ql.hooks.Entity.Type;
-import org.apache.hadoop.hive.ql.hooks.ExecuteWithHookContext;
-import org.apache.hadoop.hive.ql.hooks.HookContext;
-import org.apache.hadoop.hive.ql.hooks.ReadEntity;
-import org.apache.hadoop.hive.ql.hooks.WriteEntity;
 import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.hadoop.hive.ql.plan.HiveOperation;
@@ -101,6 +98,8 @@ public class HiveHook extends AtlasHook implements ExecuteWithHookContext {
         public String queryId;
         public String queryStr;
         public Long queryStartTime;
+
+        public Map<ColumnLineageUtils.ColumnName, List<ColumnLineageUtils.HiveColumnLineageInfo>> lineageInfo;
     }
 
     private List<HookNotification.HookNotificationMessage> messages = new ArrayList<>();
@@ -176,6 +175,8 @@ public class HiveHook extends AtlasHook implements ExecuteWithHookContext {
         event.queryStartTime = hookContext.getQueryPlan().getQueryStartTime();
 
         event.jsonPlan = getQueryPlan(hookContext.getConf(), hookContext.getQueryPlan());
+
+        event.lineageInfo = ColumnLineageUtils.buildLineageMap(hookContext.getLinfo());
 
         boolean sync = conf.get(CONF_SYNC, "false").equals("true");
         if (sync) {
@@ -386,7 +387,18 @@ public class HiveHook extends AtlasHook implements ExecuteWithHookContext {
 
         //TODO set
         processReferenceable.set("queryGraph", "queryGraph");
-        messages.add(new HookNotification.EntityCreateRequest(processReferenceable));
+
+
+        // setup Column Lineage
+        Map<ColumnLineageUtils.ColumnName, Referenceable> columnQNameToRef =
+                ColumnLineageUtils.buildColumnReferenceableMap(source, target);
+        List<Referenceable> colLineageObjects = createColumnLineageObjects(processReferenceable,
+                event.lineageInfo,
+                columnQNameToRef);
+
+        colLineageObjects.add(0, processReferenceable);
+
+        messages.add(new HookNotification.EntityCreateRequest(colLineageObjects));
     }
 
 
@@ -400,5 +412,44 @@ public class HiveHook extends AtlasHook implements ExecuteWithHookContext {
             LOG.info("Failed to get queryplan", e);
             return new JSONObject();
         }
+    }
+
+    private List<Referenceable> createColumnLineageObjects(
+            Referenceable processRefObj,
+            Map<ColumnLineageUtils.ColumnName, List<ColumnLineageUtils.HiveColumnLineageInfo>> lineageInfo,
+            Map<ColumnLineageUtils.ColumnName, Referenceable> columnQNameToRef
+    ) {
+        List<Referenceable> l = new ArrayList<>();
+
+        for(Map.Entry<ColumnLineageUtils.ColumnName, List<ColumnLineageUtils.HiveColumnLineageInfo>> e :
+                lineageInfo.entrySet()) {
+            Referenceable destCol = columnQNameToRef.get(e.getKey());
+            if (destCol == null ) {
+                LOG.debug("Couldn't find output Column {}", e.getKey());
+                continue;
+            }
+            List<Referenceable> outRef = new ArrayList<>();
+            outRef.add(destCol);
+            List<Referenceable> inputRefs = new ArrayList<>();
+            for(ColumnLineageUtils.HiveColumnLineageInfo cLI : e.getValue()) {
+                Referenceable srcCol = columnQNameToRef.get(cLI.inputColumn);
+                if (srcCol == null ) {
+                    LOG.debug("Couldn't find input Column {}", cLI.inputColumn);
+                    continue;
+                }
+                inputRefs.add(srcCol);
+            }
+
+            if (inputRefs.size() > 0 ) {
+                Referenceable r = new Referenceable(HiveDataTypes.HIVE_COLUMN_LINEAGE.getName());
+                r.set("inputs", inputRefs);
+                r.set("outputs", outRef);
+                r.set("process", processRefObj);
+                r.set("depenendencyType", e.getValue().get(0).depenendencyType);
+                r.set("expression", e.getValue().get(0).expr);
+            }
+        }
+
+        return l;
     }
 }

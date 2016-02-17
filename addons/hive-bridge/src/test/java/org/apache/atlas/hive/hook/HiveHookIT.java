@@ -135,7 +135,7 @@ public class HiveHookIT {
         //there is only one instance of column registered
         String colId = assertColumnIsRegistered(colName);
         Referenceable colEntity = dgiCLient.getEntity(colId);
-        Assert.assertEquals(colEntity.get("qualifiedName"), String.format("%s.%s.%s@%s", dbName.toLowerCase(),
+        Assert.assertEquals(colEntity.get("name"), String.format("%s.%s.%s@%s", dbName.toLowerCase(),
                 tableName.toLowerCase(), colName.toLowerCase(), CLUSTER_NAME));
 
         tableName = createTable();
@@ -157,7 +157,7 @@ public class HiveHookIT {
     private String assertColumnIsRegistered(String colName) throws Exception {
         LOG.debug("Searching for column {}", colName);
         String query =
-                String.format("%s where name = '%s'", HiveDataTypes.HIVE_COLUMN.getName(), colName.toLowerCase());
+                String.format("%s where columnName = '%s'", HiveDataTypes.HIVE_COLUMN.getName(), colName.toLowerCase());
         return assertEntityIsRegistered(query);
     }
 
@@ -166,6 +166,21 @@ public class HiveHookIT {
         String tableName = createTable();
         String ctasTableName = "table" + random();
         String query = "create table " + ctasTableName + " as select * from " + tableName;
+        runCommand(query);
+
+        assertProcessIsRegistered(query);
+        assertTableIsRegistered(DEFAULT_DB, ctasTableName);
+    }
+
+    @Test
+    public void testCTAS2() throws Exception {
+        String tableName1 = createTable();
+        String tableName2 = createTable();
+        String ctasTableName = "table" + random();
+        String query = "create table " + ctasTableName + " as " +
+                "select t1.id, t1.name, q1.c, q1.s from " + tableName1 + " as t1" +
+                ", (select name, count(*) as c, sum(id) as s from " + tableName2 +
+                " group by name) q1 where t1.name = q1.name";
         runCommand(query);
 
         assertProcessIsRegistered(query);

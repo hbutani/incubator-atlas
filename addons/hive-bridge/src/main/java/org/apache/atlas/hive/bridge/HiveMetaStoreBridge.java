@@ -568,10 +568,10 @@ public class HiveMetaStoreBridge {
         List<Referenceable> colList = new ArrayList<>();
         for (FieldSchema fs : schemaList) {
             LOG.debug("Processing field " + fs);
-            Referenceable colReferenceable = new Referenceable(HiveDataTypes.HIVE_COLUMN.getName());
-            colReferenceable.set(AtlasClient.REFERENCEABLE_ATTRIBUTE_NAME,
-                    getColumnQualifiedName(tableQualifiedName, fs.getName()));
-            colReferenceable.set(HiveDataModelGenerator.NAME, fs.getName());
+            Referenceable colReferenceable = new Referenceable(HiveDataTypes.HIVE_COLUMN.getName().toLowerCase());
+            colReferenceable.set(HiveDataModelGenerator.COLUMN_NAME,
+                    fs.getName());
+            colReferenceable.set(HiveDataModelGenerator.NAME, getColumnQualifiedName(tableQualifiedName, fs.getName()));
             colReferenceable.set("type", fs.getType());
             colReferenceable.set(HiveDataModelGenerator.COMMENT, fs.getComment());
 

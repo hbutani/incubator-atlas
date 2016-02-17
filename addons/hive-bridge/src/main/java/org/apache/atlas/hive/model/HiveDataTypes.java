@@ -44,6 +44,7 @@ public enum HiveDataTypes {
     HIVE_TYPE,
     HIVE_PROCESS,
     // HIVE_VIEW,
+    HIVE_COLUMN_LINEAGE
     ;
 
     public String getName() {
