@@ -225,6 +225,24 @@ public class HiveHookIT {
                 String.format("%s.%s.%s@%s", "default", insertTableName.toLowerCase(), "2015-01-01", CLUSTER_NAME));
     }
 
+    @Test
+    public void testInsert2() throws Exception {
+        String tableName = createTable();
+        String tableName2 = createTable(false);
+        String insertTableName = createTable();
+        String query =
+                "insert into " + insertTableName + " partition(dt = '2015-01-01') " +
+                        "select t1.id, t2.name from " + tableName +  " t1, " + tableName2 + " t2 "
+                        + " where t1.dt = '2015-01-01' and t1.id = t2.id";
+
+        runCommand(query);
+        assertProcessIsRegistered(query);
+        String partId = assertPartitionIsRegistered(DEFAULT_DB, insertTableName, "2015-01-01");
+        Referenceable partitionEntity = dgiCLient.getEntity(partId);
+        Assert.assertEquals(partitionEntity.get("qualifiedName"),
+                String.format("%s.%s.%s@%s", "default", insertTableName.toLowerCase(), "2015-01-01", CLUSTER_NAME));
+    }
+
     private String random() {
         return RandomStringUtils.randomAlphanumeric(10);
     }
