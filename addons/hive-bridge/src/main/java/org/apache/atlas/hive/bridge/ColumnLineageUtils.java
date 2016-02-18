@@ -96,6 +96,7 @@ public class ColumnLineageUtils {
             for(LineageInfo.BaseColumnInfo iCol : e.getValue().getBaseCols()) {
                 l.add(new HiveColumnLineageInfo(e.getValue(), iCol));
             }
+            m.put(k, l);
         }
         return m;
     }
@@ -112,11 +113,11 @@ public class ColumnLineageUtils {
 
     static void populateColumnReferenceableMap(Map<ColumnName, Referenceable> m,
                                                Referenceable r) {
-        if (r.getTypeName() == HiveDataTypes.HIVE_TABLE.getName()) {
+        if (r.getTypeName().equals(HiveDataTypes.HIVE_TABLE.getName())) {
             String qName = (String) r.get(HiveDataModelGenerator.NAME);
             String[] qNameComps = extractComponents(qName);
             for(Referenceable col : (List<Referenceable>) r.getValuesMap().get("columns") ) {
-                String cName = (String) col.get(HiveDataModelGenerator.NAME);
+                String cName = (String) col.get(HiveDataModelGenerator.COLUMN_NAME);
                 m.put(new ColumnName(qNameComps, cName), col);
             }
         }

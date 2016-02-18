@@ -21,6 +21,7 @@ package org.apache.atlas.hive.hook;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.atlas.ApplicationProperties;
+import org.apache.atlas.AtlasClient;
 import org.apache.atlas.hive.bridge.ColumnLineageUtils;
 import org.apache.atlas.hive.bridge.HiveMetaStoreBridge;
 import org.apache.atlas.hive.model.HiveDataModelGenerator;
@@ -442,11 +443,14 @@ public class HiveHook extends AtlasHook implements ExecuteWithHookContext {
 
             if (inputRefs.size() > 0 ) {
                 Referenceable r = new Referenceable(HiveDataTypes.HIVE_COLUMN_LINEAGE.getName());
+                r.set("name", processRefObj.get(AtlasClient.NAME) + ":" + outRef.get(0).get(AtlasClient.NAME));
                 r.set("inputs", inputRefs);
                 r.set("outputs", outRef);
                 r.set("process", processRefObj);
                 r.set("depenendencyType", e.getValue().get(0).depenendencyType);
                 r.set("expression", e.getValue().get(0).expr);
+
+                l.add(r);
             }
         }
 
