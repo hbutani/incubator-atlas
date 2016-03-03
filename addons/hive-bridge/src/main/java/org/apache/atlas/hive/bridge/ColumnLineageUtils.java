@@ -23,55 +23,52 @@ import org.apache.atlas.hive.model.HiveDataTypes;
 import org.apache.atlas.typesystem.Referenceable;
 import org.apache.hadoop.hive.ql.hooks.LineageInfo;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class ColumnLineageUtils {
 
     public static class ColumnName {
+
         public final String dbName;
         public final String tableName;
         public final String colName;
+        public final boolean allCols;
 
         public ColumnName(LineageInfo.BaseColumnInfo col) {
             dbName = col.getTabAlias().getTable().getDbName();
             tableName = col.getTabAlias().getTable().getTableName();
-            colName = col.getColumn().getName();
+            colName = col.getColumn() == null ? null : col.getColumn().getName();
+            allCols = colName == null;;
         }
 
         public ColumnName(LineageInfo.DependencyKey depKey) {
             dbName = depKey.getDataContainer().getTable().getDbName();
             tableName = depKey.getDataContainer().getTable().getTableName();
             colName = depKey.getFieldSchema().getName();
+            allCols = colName == null;;
         }
 
         public ColumnName(String[] qName, String colName) {
             dbName = qName.length > 1 ? qName[0] : "" /* this shouldn't happen */;
             tableName = qName.length > 1 ? qName[1] : qName[0] /* this shouldn't happen */;
             this.colName = colName;
+            allCols = this.colName == null;
         }
 
         @Override
         public boolean equals(Object o) {
             if (this == o) return true;
             if (o == null || getClass() != o.getClass()) return false;
-
             ColumnName that = (ColumnName) o;
-
-            if (dbName != null ? !dbName.equals(that.dbName) : that.dbName != null) return false;
-            if (tableName != null ? !tableName.equals(that.tableName) : that.tableName != null) return false;
-            return colName != null ? colName.equals(that.colName) : that.colName == null;
-
+            return allCols == that.allCols &&
+                    Objects.equals(dbName, that.dbName) &&
+                    Objects.equals(tableName, that.tableName) &&
+                    Objects.equals(colName, that.colName);
         }
 
         @Override
         public int hashCode() {
-            int result = dbName != null ? dbName.hashCode() : 0;
-            result = 31 * result + (tableName != null ? tableName.hashCode() : 0);
-            result = 31 * result + (colName != null ? colName.hashCode() : 0);
-            return result;
+            return Objects.hash(dbName, tableName, colName, allCols);
         }
     }
 
@@ -120,6 +117,7 @@ public class ColumnLineageUtils {
                 String cName = (String) col.get(HiveDataModelGenerator.COLUMN_NAME);
                 m.put(new ColumnName(qNameComps, cName), col);
             }
+            m.put(new ColumnName(qNameComps, null), r);
         }
     }
 

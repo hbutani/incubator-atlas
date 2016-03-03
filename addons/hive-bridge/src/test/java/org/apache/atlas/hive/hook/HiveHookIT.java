@@ -243,6 +243,19 @@ public class HiveHookIT {
                 String.format("%s.%s.%s@%s", "default", insertTableName.toLowerCase(), "2015-01-01", CLUSTER_NAME));
     }
 
+    @Test
+    public void testInsert3() throws Exception {
+        String tableName = createTable(false);
+        String insertTableName = createTable(false);
+        String query =
+                "insert into " + insertTableName +
+                        " select count(*), name from " + tableName
+                        + " group by name";
+
+        runCommand(query);
+        assertProcessIsRegistered(query);
+    }
+
     private String random() {
         return RandomStringUtils.randomAlphanumeric(10);
     }
